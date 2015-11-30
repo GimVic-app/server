@@ -53,4 +53,25 @@ func check(err error) {
 type ChooserOptionsResponse struct {
 	MainClasses       []string
 	AdditionalClasses []string
+	ValidUntil        string
+}
+
+type ScheduleResponse struct {
+}
+
+type Day struct {
+	Lessons    []Lesson
+	SnackLines []string
+	LunchLines []string
+}
+
+type Lesson struct {
+	Subject        string
+	Teacher        string
+	Classroom      string
+	Class          string
+	Note           string
+	Lesson         int
+	Day            int
+	IsSubstitution bool
 }
