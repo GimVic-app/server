@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -23,7 +24,7 @@ func main() {
 
 func data(w http.ResponseWriter, r *http.Request) {
 	queries := parseUrl(r)
-	addSubs, classes, _, _ := parseQueries(queries)
+	addSubs, classes, snackType, lunchType := parseQueries(queries)
 	result := DataResponse{}
 
 	result.Days = pureScedule(classes)
@@ -31,9 +32,71 @@ func data(w http.ResponseWriter, r *http.Request) {
 	if addSubs {
 		result.Days = addSubstitutions(result.Days, classes)
 	}
+
+	now.FirstDayMonday = true
+	currentDate := now.BeginningOfWeek()
+	for i := 0; i < 5; i++ {
+		result.Days[i].SnackLines = getSnack(snackType, currentDate)
+		result.Days[i].LunchLines = getLunch(lunchType, currentDate)
+		currentDate = currentDate.Add(oneDay)
+	}
+
+	validUntil := time.Now().Add(7 * oneDay)
+	result.ValidUntil = dateToStr(validUntil)
+
 	jsonStr, err := json.Marshal(result)
 	check(err)
 	fmt.Fprint(w, string(jsonStr))
+}
+
+func dateToStr(date time.Time) string {
+	return strconv.Itoa(date.Year()) + "-" + strconv.Itoa(int(date.Month())) + "-" + strconv.Itoa(date.Day())
+}
+
+func getSnack(typeStr string, date time.Time) []string {
+	con, err := sql.Open("mysql", sqlString)
+	check(err)
+	defer con.Close()
+
+	if typeStr == "navadna" {
+		typeStr = "normal"
+	}
+	if typeStr == "vegetarijanska" {
+		typeStr = "veg"
+	}
+	if typeStr == "vegetarijanska_s_perutnino_in_ribo" {
+		typeStr = "veg_per"
+	}
+	if typeStr == "sadnozelenjavna" {
+		typeStr = "sadnozel"
+	}
+	rows, err := con.Query("select " + typeStr + " from snack where date='" + dateToStr(date) + "';")
+	check(err)
+	var temp string
+	rows.Next()
+	rows.Scan(&temp)
+
+	return strings.Split(temp, ";")
+}
+
+func getLunch(typeStr string, date time.Time) []string {
+	con, err := sql.Open("mysql", sqlString)
+	check(err)
+	defer con.Close()
+
+	if typeStr == "navadno" {
+		typeStr = "normal"
+	}
+	if typeStr == "vegetarijansko" {
+		typeStr = "veg"
+	}
+	rows, err := con.Query("select " + typeStr + " from lunch where date='" + dateToStr(date) + "';")
+	check(err)
+	var temp string
+	rows.Next()
+	rows.Scan(&temp)
+
+	return strings.Split(temp, ";")
 }
 
 func addSubstitutions(days [5]Day, classes []string) [5]Day {
@@ -48,8 +111,7 @@ func addSubstitutions(days [5]Day, classes []string) [5]Day {
 			}
 			where += "class='" + class + "'"
 		}
-		dateStr := strconv.Itoa(date.Year()) + "-" + strconv.Itoa(int(date.Month())) + "-" + strconv.Itoa(date.Day())
-		where += ") and date='" + dateStr + "'"
+		where += ") and date='" + dateToStr(date) + "'"
 
 		con, err := sql.Open("mysql", sqlString)
 		check(err)
@@ -148,6 +210,17 @@ func chooserOptions(w http.ResponseWriter, r *http.Request) {
 		response.AdditionalClasses = append(response.AdditionalClasses, temp)
 	}
 
+	//fill additional teachers
+	rows, err = con.Query("select teacher from teachers;")
+	check(err)
+	for rows.Next() {
+		var temp string
+		rows.Scan(&temp)
+		response.Teachers = append(response.Teachers, temp)
+	}
+
+	response.LunchTypes = [2]string{"navadno", "vegetarijansko"}
+	response.SnackTypes = [4]string{"navadna", "vegetarijanska", "vegetarijanska_s_perutnino_in_ribo", "sadnozelenjavna"}
 	responseStr, err := json.Marshal(response)
 	check(err)
 	fmt.Fprint(w, string(responseStr))
@@ -169,20 +242,24 @@ func check(err error) {
 }
 
 type ChooserOptionsResponse struct {
-	MainClasses       []string `json:"mainClasses,omitempty"`
-	AdditionalClasses []string `json:"additionalClasses,omitempty"`
-	ValidUntil        string   `json:"validUntil,omitempty"`
+	MainClasses       []string  `json:"mainClasses,omitempty"`
+	AdditionalClasses []string  `json:"additionalClasses,omitempty"`
+	Teachers          []string  `json:"teachers,omitempty"`
+	SnackTypes        [4]string `json:"snackTypes,omitempty"`
+	LunchTypes        [2]string `json:"lunchTypes,omitempty"`
 }
 
 type DataResponse struct {
-	Days [5]Day `json:"days,omitempty"`
-	Hash string `json:"hash,omitempty"`
+	Days       [5]Day `json:"days,omitempty"`
+	ValidUntil string `json:"validUntil,omitempty"`
 }
 
 type Day struct {
 	Lessons    [8]Lesson `json:"lessons,omitempty"`
 	SnackLines []string  `json:"snackLines,omitempty"`
 	LunchLines []string  `json:"lunchLines,omitempty"`
+	SnackType  string    `json:"snackType,omitempty"`
+	LunchType  string    `json:"lunchType,omitempty"`
 }
 
 type Lesson struct {
@@ -193,5 +270,5 @@ type Lesson struct {
 	Note           string   `json:"note,omitempty"`
 	Lesson         int      `json:"lesson,omitempty"`
 	Day            int      `json:"day,omitempty"`
-	IsSubstitution bool     `json:"substitution"`
+	IsSubstitution bool     `json:"substitution,omitempty"`
 }
