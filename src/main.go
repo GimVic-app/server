@@ -35,15 +35,14 @@ func data(w http.ResponseWriter, r *http.Request) {
 		result.Days = addSubstitutions(result.Days, classes)
 	}
 
-	now.FirstDayMonday = true
-	currentDate := now.BeginningOfWeek()
+	currentDate := getPropperStartDate()
 	for i := 0; i < 5; i++ {
 		result.Days[i].SnackLines = getSnack(snackType, currentDate)
 		result.Days[i].LunchLines = getLunch(lunchType, currentDate)
 		currentDate = currentDate.Add(oneDay)
 	}
 
-	validUntil := time.Now().Add(7 * oneDay)
+	validUntil := time.Now().Add(5 * oneDay)
 	result.ValidUntil = dateToStr(validUntil)
 
 	jsonStr, err := json.Marshal(result)
@@ -114,8 +113,7 @@ func getLunch(typeStr string, date time.Time) []string {
 }
 
 func addSubstitutions(days [5]Day, classes []string) [5]Day {
-	now.FirstDayMonday = true
-	date := now.BeginningOfWeek()
+	date := getPropperStartDate()
 
 	for i := 0; i < 5; i++ {
 		where := "("
@@ -238,6 +236,16 @@ func chooserOptions(w http.ResponseWriter, r *http.Request) {
 	responseStr, err := json.Marshal(response)
 	check(err)
 	fmt.Fprint(w, string(responseStr))
+}
+
+func getPropperStartDate() time.Time {
+	now.FirstDayMonday = true
+	result := now.BeginningOfWeek()
+	current := time.Now()
+	if current.Weekday() == time.Saturday || current.Weekday() == time.Sunday {
+		result = result.Add(7 * oneDay)
+	}
+	return result
 }
 
 func parseUrl(r *http.Request) map[string][]string {
