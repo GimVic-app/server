@@ -163,7 +163,7 @@ func parseQueries(q map[string][]string) (addSubstitutions bool, classes []strin
 	if q["addSubstitutions"][0] == "true" {
 		addSubs = true
 	}
-	resultClasses := q["classes"]
+	resultClasses := q["classes[]"]
 	resSnackType := q["snackType"][0]
 	resLunchType := q["lunchType"][0]
 
@@ -184,6 +184,7 @@ func pureScedule(classes []string) [5]Day {
 		}
 		where += "class='" + class + "'"
 	}
+	fmt.Println(where)
 	rows, err := con.Query("select class, teacher, subject, classroom, day, lesson from schedule where " + where + ";")
 	check(err)
 	var class, teacher, subject, classroom string
