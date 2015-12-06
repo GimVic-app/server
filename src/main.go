@@ -21,6 +21,7 @@ var oneDay time.Duration = time.Date(2015, 11, 30, 0, 0, 0, 0, time.UTC).Sub(tim
 func main() {
 	http.HandleFunc("/chooserOptions", chooserOptions)
 	http.HandleFunc("/data", data)
+	http.HandleFunc("/teacherData", teacherData)
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -33,6 +34,31 @@ func data(w http.ResponseWriter, r *http.Request) {
 
 	if addSubs {
 		result.Days = addSubstitutions(result.Days, classes)
+	}
+
+	currentDate := getPropperStartDate()
+	for i := 0; i < 5; i++ {
+		result.Days[i].SnackLines = getSnack(snackType, currentDate)
+		result.Days[i].LunchLines = getLunch(lunchType, currentDate)
+		currentDate = currentDate.Add(oneDay)
+	}
+
+	validUntil := time.Now().Add(5 * oneDay)
+	result.ValidUntil = dateToStr(validUntil)
+
+	jsonStr, err := json.Marshal(result)
+	check(err)
+	fmt.Fprint(w, string(jsonStr))
+}
+
+func teacherData(w http.ResponseWriter, r *http.Request) {
+	queries := parseUrl(r)
+	addSubs, teacher, snackType, lunchType := parseTeacherQueries(queries)
+	result := DataResponse{}
+
+	result.Days = pureTeacherScedule(teacher)
+	if addSubs {
+		result.Days = addTeacherSubstitutions(result.Days, teacher)
 	}
 
 	currentDate := getPropperStartDate()
@@ -138,16 +164,55 @@ func addSubstitutions(days [5]Day, classes []string) [5]Day {
 			days[i].Lessons[lesson-1].IsSubstitution = true
 
 			days[i].Lessons[lesson-1].Classes = days[i].Lessons[lesson-1].Classes[:0]
-			days[i].Lessons[lesson-1].Classes = append(days[i].Lessons[lesson-1].Classes, class)
+			days[i].Lessons[lesson-1].Classes = addIfNeeded(days[i].Lessons[lesson-1].Classes, class)
 
 			days[i].Lessons[lesson-1].Teachers = days[i].Lessons[lesson-1].Teachers[:0]
-			days[i].Lessons[lesson-1].Teachers = append(days[i].Lessons[lesson-1].Teachers, teacher)
+			days[i].Lessons[lesson-1].Teachers = addIfNeeded(days[i].Lessons[lesson-1].Teachers, teacher)
 
 			days[i].Lessons[lesson-1].Subjects = days[i].Lessons[lesson-1].Subjects[:0]
-			days[i].Lessons[lesson-1].Subjects = append(days[i].Lessons[lesson-1].Subjects, subject)
+			days[i].Lessons[lesson-1].Subjects = addIfNeeded(days[i].Lessons[lesson-1].Subjects, subject)
 
 			days[i].Lessons[lesson-1].Classrooms = days[i].Lessons[lesson-1].Classrooms[:0]
-			days[i].Lessons[lesson-1].Classrooms = append(days[i].Lessons[lesson-1].Classrooms, classroom)
+			days[i].Lessons[lesson-1].Classrooms = addIfNeeded(days[i].Lessons[lesson-1].Classrooms, classroom)
+
+			days[i].Lessons[lesson-1].Note = note
+		}
+
+		date = date.Add(oneDay)
+	}
+
+	return days
+}
+
+func addTeacherSubstitutions(days [5]Day, teacher string) [5]Day {
+	date := getPropperStartDate()
+
+	for i := 0; i < 5; i++ {
+		where := "teacher='" + teacher + "' or absent_teacher='" + teacher + "' and date='" + dateToStr(date) + "'"
+
+		con, err := sql.Open("mysql", sqlString)
+		check(err)
+		defer con.Close()
+		rows, err := con.Query("select class, teacher, subject, classroom, lesson, note from substitutions where " + where + ";")
+		check(err)
+		var class, teacher, subject, classroom, note string
+		var lesson int
+		for rows.Next() {
+			rows.Scan(&class, &teacher, &subject, &classroom, &lesson, &note)
+
+			days[i].Lessons[lesson-1].IsSubstitution = true
+
+			days[i].Lessons[lesson-1].Classes = days[i].Lessons[lesson-1].Classes[:0]
+			days[i].Lessons[lesson-1].Classes = addIfNeeded(days[i].Lessons[lesson-1].Classes, class)
+
+			days[i].Lessons[lesson-1].Teachers = days[i].Lessons[lesson-1].Teachers[:0]
+			days[i].Lessons[lesson-1].Teachers = addIfNeeded(days[i].Lessons[lesson-1].Teachers, teacher)
+
+			days[i].Lessons[lesson-1].Subjects = days[i].Lessons[lesson-1].Subjects[:0]
+			days[i].Lessons[lesson-1].Subjects = addIfNeeded(days[i].Lessons[lesson-1].Subjects, subject)
+
+			days[i].Lessons[lesson-1].Classrooms = days[i].Lessons[lesson-1].Classrooms[:0]
+			days[i].Lessons[lesson-1].Classrooms = addIfNeeded(days[i].Lessons[lesson-1].Classrooms, classroom)
 
 			days[i].Lessons[lesson-1].Note = note
 		}
@@ -171,6 +236,19 @@ func parseQueries(q map[string][]string) (addSubstitutions bool, classes []strin
 
 }
 
+func parseTeacherQueries(q map[string][]string) (addSubstitutions bool, teacher string, snackType, lunchType string) {
+	addSubs := false
+	if q["addSubstitutions"][0] == "true" {
+		addSubs = true
+	}
+	resultTeacher := q["teacher"][0]
+	resSnackType := q["snackType"][0]
+	resLunchType := q["lunchType"][0]
+
+	return addSubs, resultTeacher, resSnackType, resLunchType
+
+}
+
 func pureScedule(classes []string) [5]Day {
 	var days [5]Day
 	con, err := sql.Open("mysql", sqlString)
@@ -184,21 +262,52 @@ func pureScedule(classes []string) [5]Day {
 		}
 		where += "class='" + class + "'"
 	}
-	fmt.Println(where)
+
 	rows, err := con.Query("select class, teacher, subject, classroom, day, lesson from schedule where " + where + ";")
 	check(err)
 	var class, teacher, subject, classroom string
 	var day, lesson int
 	for rows.Next() {
 		rows.Scan(&class, &teacher, &subject, &classroom, &day, &lesson)
-		days[day-1].Lessons[lesson-1].Classes = append(days[day-1].Lessons[lesson-1].Classes, class)
-		days[day-1].Lessons[lesson-1].Teachers = append(days[day-1].Lessons[lesson-1].Teachers, teacher)
-		days[day-1].Lessons[lesson-1].Subjects = append(days[day-1].Lessons[lesson-1].Subjects, subject)
-		days[day-1].Lessons[lesson-1].Classrooms = append(days[day-1].Lessons[lesson-1].Classrooms, classroom)
+		days[day-1].Lessons[lesson-1].Classes = addIfNeeded(days[day-1].Lessons[lesson-1].Classes, class)
+		days[day-1].Lessons[lesson-1].Teachers = addIfNeeded(days[day-1].Lessons[lesson-1].Teachers, teacher)
+		days[day-1].Lessons[lesson-1].Subjects = addIfNeeded(days[day-1].Lessons[lesson-1].Subjects, subject)
+		days[day-1].Lessons[lesson-1].Classrooms = addIfNeeded(days[day-1].Lessons[lesson-1].Classrooms, classroom)
 	}
 
 	return days
 }
+
+func pureTeacherScedule(teacher string) [5]Day {
+	var days [5]Day
+	con, err := sql.Open("mysql", sqlString)
+	check(err)
+	defer con.Close()
+
+	rows, err := con.Query("select class, subject, classroom, day, lesson from schedule where teacher='" + teacher + "';")
+	check(err)
+	var class, subject, classroom string
+	var day, lesson int
+	for rows.Next() {
+		rows.Scan(&class, &subject, &classroom, &day, &lesson)
+		days[day-1].Lessons[lesson-1].Classes = addIfNeeded(days[day-1].Lessons[lesson-1].Classes, class)
+		days[day-1].Lessons[lesson-1].Teachers = addIfNeeded(days[day-1].Lessons[lesson-1].Teachers, teacher)
+		days[day-1].Lessons[lesson-1].Subjects = addIfNeeded(days[day-1].Lessons[lesson-1].Subjects, subject)
+		days[day-1].Lessons[lesson-1].Classrooms = addIfNeeded(days[day-1].Lessons[lesson-1].Classrooms, classroom)
+	}
+
+	return days
+}
+
+func addIfNeeded(original []string, add string) []string {
+	for _, item := range original {
+		if item == item {
+			return original
+		}
+	}
+	return append(original, add)
+}
+
 func chooserOptions(w http.ResponseWriter, r *http.Request) {
 	response := ChooserOptionsResponse{}
 	con, err := sql.Open("mysql", sqlString)
