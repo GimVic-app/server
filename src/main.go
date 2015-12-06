@@ -6,8 +6,10 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/now"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +49,18 @@ func data(w http.ResponseWriter, r *http.Request) {
 	jsonStr, err := json.Marshal(result)
 	check(err)
 	fmt.Fprint(w, string(jsonStr))
+}
+
+func menuUpload(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	csv := r.Form["data"][0]
+	datetime := time.Now()
+	fileName := "menu_files/" + dateToStr(datetime) + "-" + strconv.Itoa(datetime.Hour()) + "-" + strconv.Itoa(datetime.Minute()) + "-" + strconv.Itoa(datetime.Second()) + ".csv"
+	err := ioutil.WriteFile(fileName, []byte(csv), 0777)
+	check(err)
+
+	_, err = exec.Command("gimvic-data-updater menu " + fileName).Output()
+	check(err)
 }
 
 func dateToStr(date time.Time) string {
