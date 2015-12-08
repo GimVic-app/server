@@ -43,7 +43,7 @@ func data(w http.ResponseWriter, r *http.Request) {
 		currentDate = currentDate.Add(oneDay)
 	}
 
-	validUntil := time.Now().Add(5 * oneDay)
+	validUntil := getPropperStartDate().Add(4 * oneDay)
 	result.ValidUntil = dateToStr(validUntil)
 
 	jsonStr, err := json.Marshal(result)
@@ -68,7 +68,7 @@ func teacherData(w http.ResponseWriter, r *http.Request) {
 		currentDate = currentDate.Add(oneDay)
 	}
 
-	validUntil := time.Now().Add(5 * oneDay)
+	validUntil := getPropperStartDate().Add(4 * oneDay)
 	result.ValidUntil = dateToStr(validUntil)
 
 	jsonStr, err := json.Marshal(result)
