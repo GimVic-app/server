@@ -301,7 +301,7 @@ func pureTeacherScedule(teacher string) [5]Day {
 
 func addIfNeeded(original []string, add string) []string {
 	for _, item := range original {
-		if item == item {
+		if item == add {
 			return original
 		}
 	}
