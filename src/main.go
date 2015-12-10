@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -340,6 +341,10 @@ func chooserOptions(w http.ResponseWriter, r *http.Request) {
 		rows.Scan(&temp)
 		response.Teachers = append(response.Teachers, temp)
 	}
+
+	sort.Strings(response.MainClasses)
+	sort.Strings(response.AdditionalClasses)
+	sort.Strings(response.Teachers)
 
 	response.LunchTypes = [2]string{"navadno", "vegetarijansko"}
 	response.SnackTypes = [4]string{"navadna", "vegetarijanska", "vegetarijanska_s_perutnino_in_ribo", "sadnozelenjavna"}
