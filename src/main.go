@@ -23,6 +23,7 @@ func main() {
 	http.HandleFunc("/chooserOptions", chooserOptions)
 	http.HandleFunc("/data", data)
 	http.HandleFunc("/teacherData", teacherData)
+	http.HandleFunc("/menuUpload", menuUpload)
 	http.ListenAndServe(":8080", nil)
 }
 
