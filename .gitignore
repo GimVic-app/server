@@ -22,3 +22,8 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+menu_files
+main
+pid
+nohup.out
