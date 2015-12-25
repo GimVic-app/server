@@ -86,7 +86,7 @@ func menuUpload(w http.ResponseWriter, r *http.Request) {
 	err := ioutil.WriteFile(fileName, []byte(csv), 0777)
 	check(err)
 
-	_, err = exec.Command("gimvic-data-updater menu " + fileName).Output()
+	_, err = exec.Command("sh", "-c", "gimvic-data-updater menu " + fileName).Output()
 	check(err)
 }
 
