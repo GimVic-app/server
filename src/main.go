@@ -82,7 +82,7 @@ func menuUpload(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	csv := r.Form["data"][0]
 	datetime := time.Now()
-	fileName := "menu_files/" + dateToStr(datetime) + "-" + strconv.Itoa(datetime.Hour()) + "-" + strconv.Itoa(datetime.Minute()) + "-" + strconv.Itoa(datetime.Second()) + ".csv"
+	fileName := "/var/gimvic_menu/" + dateToStr(datetime) + "-" + strconv.Itoa(datetime.Hour()) + "-" + strconv.Itoa(datetime.Minute()) + "-" + strconv.Itoa(datetime.Second()) + ".csv"
 	err := ioutil.WriteFile(fileName, []byte(csv), 0777)
 	check(err)
 
