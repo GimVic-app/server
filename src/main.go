@@ -190,7 +190,7 @@ func addTeacherSubstitutions(days [5]Day, teacher string) [5]Day {
 	date := getPropperStartDate()
 
 	for i := 0; i < 5; i++ {
-		where := "teacher='" + teacher + "' or absent_teacher='" + teacher + "' and date='" + dateToStr(date) + "'"
+		where := "(teacher='" + teacher + "' or absent_teacher='" + teacher + "') and date='" + dateToStr(date) + "'"
 
 		con, err := sql.Open("mysql", sqlString)
 		check(err)
