@@ -145,7 +145,7 @@ func addSubstitutions(days [5]Day, classes []string) [5]Day {
 
 	for i := 0; i < 5; i++ {
 		if i == 4 {
-			n := 4
+			n := len(days[i].Lessons)
 			for j := 0; j < n; j++ {
 				days[i].Lessons[j].IsSubstitution = true
 				days[i].Lessons[j].Classes = []string{"VSI"}
