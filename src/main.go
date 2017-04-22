@@ -144,52 +144,40 @@ func addSubstitutions(days [5]Day, classes []string) [5]Day {
 	date := getPropperStartDate()
 
 	for i := 0; i < 5; i++ {
-		if i == 4 {
-			n := len(days[i].Lessons)
-			for j := 0; j < n; j++ {
-				days[i].Lessons[j].IsSubstitution = true
-				days[i].Lessons[j].Classes = []string{"VSI"}
-				days[i].Lessons[j].Teachers = []string{"4. l."}
-				days[i].Lessons[j].Subjects = []string{"PROSTO"}
-				days[i].Lessons[j].Classrooms = []string{"KEKEC"}
-				days[i].Lessons[j].Note = "by Žiga in Vid, 4B :D"
+		where := "("
+		for _, class := range classes {
+			if where != "(" {
+				where += " or "
 			}
-		}else {
-			where := "("
-			for _, class := range classes {
-				if where != "(" {
-					where += " or "
-				}
-				where += "class='" + class + "'"
-			}
-			where += ") and date='" + dateToStr(date) + "'"
+			where += "class='" + class + "'"
+		}
+		where += ") and date='" + dateToStr(date) + "'"
 
-			con, err := sql.Open("mysql", sqlString)
-			check(err)
-			defer con.Close()
-			rows, err := con.Query("select class, teacher, subject, classroom, lesson, note from substitutions where " + where + ";")
-			check(err)
-			var class, teacher, subject, classroom, note string
-			var lesson int
-			for rows.Next() {
-				rows.Scan(&class, &teacher, &subject, &classroom, &lesson, &note)
+		con, err := sql.Open("mysql", sqlString)
+		check(err)
+		defer con.Close()
+		rows, err := con.Query("select class, teacher, subject, classroom, lesson, note from substitutions where " + where + ";")
+		check(err)
+		var class, teacher, subject, classroom, note string
+		var lesson int
+		for rows.Next() {
+			rows.Scan(&class, &teacher, &subject, &classroom, &lesson, &note)
 
-				days[i].Lessons[lesson-1].IsSubstitution = true
+			days[i].Lessons[lesson-1].IsSubstitution = true
 
-				days[i].Lessons[lesson-1].Classes = days[i].Lessons[lesson-1].Classes[:0]
-				days[i].Lessons[lesson-1].Classes = addIfNeeded(days[i].Lessons[lesson-1].Classes, class)
+			days[i].Lessons[lesson-1].Classes = days[i].Lessons[lesson-1].Classes[:0]
+			days[i].Lessons[lesson-1].Classes = addIfNeeded(days[i].Lessons[lesson-1].Classes, class)
 
-				days[i].Lessons[lesson-1].Teachers = days[i].Lessons[lesson-1].Teachers[:0]
-				days[i].Lessons[lesson-1].Teachers = addIfNeeded(days[i].Lessons[lesson-1].Teachers, teacher)
+			days[i].Lessons[lesson-1].Teachers = days[i].Lessons[lesson-1].Teachers[:0]
+			days[i].Lessons[lesson-1].Teachers = addIfNeeded(days[i].Lessons[lesson-1].Teachers, teacher)
 
-				days[i].Lessons[lesson-1].Subjects = days[i].Lessons[lesson-1].Subjects[:0]
-				days[i].Lessons[lesson-1].Subjects = addIfNeeded(days[i].Lessons[lesson-1].Subjects, subject)
+			days[i].Lessons[lesson-1].Subjects = days[i].Lessons[lesson-1].Subjects[:0]
+			days[i].Lessons[lesson-1].Subjects = addIfNeeded(days[i].Lessons[lesson-1].Subjects, subject)
 
-				days[i].Lessons[lesson-1].Classrooms = days[i].Lessons[lesson-1].Classrooms[:0]
-				days[i].Lessons[lesson-1].Classrooms = addIfNeeded(days[i].Lessons[lesson-1].Classrooms, classroom)
+			days[i].Lessons[lesson-1].Classrooms = days[i].Lessons[lesson-1].Classrooms[:0]
+			days[i].Lessons[lesson-1].Classrooms = addIfNeeded(days[i].Lessons[lesson-1].Classrooms, classroom)
 
-				days[i].Lessons[lesson-1].Note = note
-			}
+			days[i].Lessons[lesson-1].Note = note
 		}
 
 		date = date.Add(oneDay)
